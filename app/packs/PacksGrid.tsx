@@ -12,7 +12,7 @@ interface Pack {
   description: string
   price: number
   solPrice: number
-  imageUrl: string
+  imageUrl?: string
   rarity: string
   stock: number
   sold: number

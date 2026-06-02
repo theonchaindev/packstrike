@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { FlaskConical, X, Zap } from 'lucide-react'
+import Link from 'next/link'
 import { useDemoMode } from '@/lib/demoMode'
 
 export default function DemoModeBanner() {
@@ -47,11 +48,17 @@ export default function DemoModeBanner() {
                 <Zap size={12} className="text-green-400" />
                 <span className="text-green-300 font-bold">{demoCredits} free packs left</span>
               </div>
+              <Link
+                href="/demo/panini-prizm-wc-2026"
+                className="px-3 py-1.5 bg-green-500/20 border border-green-500/30 text-green-300 text-xs font-bold rounded-lg hover:bg-green-500/30 transition-all whitespace-nowrap"
+              >
+                Open a Pack →
+              </Link>
               <button
                 onClick={() => setDemoMode(false)}
-                className="ml-1 text-gray-500 hover:text-white transition-colors text-xs underline"
+                className="text-gray-500 hover:text-white transition-colors text-xs underline"
               >
-                Exit test mode
+                Exit
               </button>
             </>
           ) : (
