@@ -18,6 +18,7 @@ interface Reward {
   xpRequired: number
   type: string
   value: string
+  imageUrl?: string | null
 }
 
 interface User {

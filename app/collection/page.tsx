@@ -1,12 +1,26 @@
 import { getUser } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import CollectionClient from './CollectionClient'
 import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
 export default async function CollectionPage() {
-  const user = await getUser()
+  let user = null
+  let userCards: Parameters<typeof CollectionClient>[0]['cards'] = []
+
+  try {
+    const { prisma } = await import('@/lib/prisma')
+    user = await getUser()
+    if (user) {
+      userCards = await prisma.userCard.findMany({
+        where: { userId: user.id },
+        include: { card: true },
+        orderBy: { createdAt: 'desc' },
+      })
+    }
+  } catch {
+    // DB not connected
+  }
 
   if (!user) {
     return (
@@ -20,12 +34,6 @@ export default async function CollectionPage() {
       </div>
     )
   }
-
-  const userCards = await prisma.userCard.findMany({
-    where: { userId: user.id },
-    include: { card: true },
-    orderBy: { createdAt: 'desc' },
-  })
 
   return <CollectionClient cards={userCards} user={user} />
 }
