@@ -1,0 +1,123 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String     @id @default(cuid())
+  walletAddress String     @unique
+  email         String?
+  username      String?
+  xpPoints      Int        @default(0)
+  level         Int        @default(1)
+  totalSpent    Float      @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  orders        Order[]
+  collection    UserCard[]
+}
+
+model Pack {
+  id          String     @id @default(cuid())
+  name        String
+  series      String
+  edition     String
+  description String
+  price       Float
+  solPrice    Float
+  imageUrl    String
+  rarity      String     @default("standard")
+  stock       Int        @default(100)
+  sold        Int        @default(0)
+  isActive    Boolean    @default(true)
+  isFeatured  Boolean    @default(false)
+  isWorldCup  Boolean    @default(false)
+  xpReward    Int        @default(50)
+  createdAt   DateTime   @default(now())
+  orders      Order[]
+  packCards   PackCard[]
+}
+
+model Card {
+  id          String      @id @default(cuid())
+  player      String
+  team        String
+  league      String
+  series      String
+  edition     String
+  rarity      String
+  imageUrl    String
+  year        Int
+  number      Int?
+  totalPrint  Int?
+  cashValue   Float
+  description String?
+  createdAt   DateTime    @default(now())
+  packCards   PackCard[]
+  userCards   UserCard[]
+  orderCards  OrderCard[]
+}
+
+model PackCard {
+  id          String @id @default(cuid())
+  packId      String
+  cardId      String
+  probability Float
+  pack        Pack   @relation(fields: [packId], references: [id])
+  card        Card   @relation(fields: [cardId], references: [id])
+}
+
+model Order {
+  id               String      @id @default(cuid())
+  userId           String
+  packId           String
+  txSignature      String?
+  solAmount        Float
+  status           String      @default("pending")
+  redeemOption     String?
+  shippingName     String?
+  shippingLine1    String?
+  shippingCity     String?
+  shippingPostcode String?
+  shippingCountry  String?
+  openedAt         DateTime?
+  createdAt        DateTime    @default(now())
+  user             User        @relation(fields: [userId], references: [id])
+  pack             Pack        @relation(fields: [packId], references: [id])
+  cards            OrderCard[]
+}
+
+model OrderCard {
+  id      String @id @default(cuid())
+  orderId String
+  cardId  String
+  order   Order  @relation(fields: [orderId], references: [id])
+  card    Card   @relation(fields: [cardId], references: [id])
+}
+
+model UserCard {
+  id        String   @id @default(cuid())
+  userId    String
+  cardId    String
+  orderId   String?
+  redeemed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  card      Card     @relation(fields: [cardId], references: [id])
+}
+
+model Reward {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  xpRequired  Int
+  type        String
+  value       String
+  imageUrl    String?
+  isActive    Boolean @default(true)
+}
