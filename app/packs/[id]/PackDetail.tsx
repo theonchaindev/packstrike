@@ -6,7 +6,9 @@ import { useWallet, useConnection } from '@solana/wallet-adapter-react'
 import { useWalletModal } from '@solana/wallet-adapter-react-ui'
 import { SystemProgram, Transaction, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js'
 import { useRouter } from 'next/navigation'
-import { Star, Zap, Package, Truck } from 'lucide-react'
+import { Star, Zap, Package, Truck, FlaskConical } from 'lucide-react'
+import { useDemoMode } from '@/lib/demoMode'
+import PackArtwork from '@/components/PackArtwork'
 
 const rarityLabels: Record<string, { label: string; color: string }> = {
   common:    { label: 'Common',    color: '#9ca3af' },
@@ -50,6 +52,7 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
   const { connection } = useConnection()
   const { setVisible } = useWalletModal()
   const router = useRouter()
+  const { demoMode, demoCredits, spendCredit } = useDemoMode()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -58,25 +61,20 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
 
   const handleBuy = async () => {
     if (!publicKey) { setVisible(true); return }
-
     setLoading(true)
     setError('')
-
     try {
       const shopWallet = new PublicKey(
         process.env.NEXT_PUBLIC_SHOP_WALLET || '11111111111111111111111111111111'
       )
       const lamports = Math.round(pack.solPrice * LAMPORTS_PER_SOL)
-
       const tx = new Transaction().add(
         SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: shopWallet, lamports })
       )
       const { blockhash } = await connection.getLatestBlockhash()
       tx.recentBlockhash = blockhash
       tx.feePayer = publicKey
-
       const sig = await sendTransaction(tx, connection)
-
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -84,7 +82,6 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Order failed')
-
       router.push(`/open/${data.orderId}`)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Transaction failed')
@@ -93,7 +90,31 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
     }
   }
 
-  // Sort cards by rarity for display
+  const handleDemoBuy = async () => {
+    if (demoCredits <= 0) {
+      setError('No demo credits left. Connect wallet to buy with SOL.')
+      return
+    }
+    setLoading(true)
+    setError('')
+    try {
+      const spent = spendCredit()
+      if (!spent) throw new Error('No demo credits')
+      const res = await fetch('/api/demo/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId: pack.id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Demo order failed')
+      router.push(`/open/${data.orderId}`)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const rarityOrder = ['legendary', 'epic', 'rare', 'uncommon', 'common']
   const sortedCards = [...pack.packCards].sort(
     (a, b) => rarityOrder.indexOf(a.card.rarity) - rarityOrder.indexOf(b.card.rarity)
@@ -107,23 +128,50 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
           initial={{ opacity: 0, x: -30 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
+          className="flex flex-col items-center gap-6"
         >
-          <div className="relative aspect-[3/4] max-w-sm mx-auto rounded-3xl overflow-hidden bg-gradient-to-br from-[#1a1d26] to-[#0f1117] border border-white/10 shadow-2xl">
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-              <div className="text-8xl">⚽</div>
-              <div className="text-center">
-                <div className="text-sm text-gray-400 uppercase tracking-wider">{pack.series}</div>
-                <div className="text-2xl font-black mt-1">{pack.name}</div>
-              </div>
-              {pack.isWorldCup && (
-                <span className="px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-semibold">
-                  🏆 World Cup Edition
-                </span>
-              )}
-            </div>
+          <motion.div
+            className="relative max-w-xs w-full rounded-3xl overflow-hidden shadow-2xl"
+            style={{ aspectRatio: '3/4' }}
+            whileHover={{ scale: 1.02, rotate: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <PackArtwork
+              series={pack.series}
+              edition={pack.edition}
+              name={pack.name}
+              rarity={pack.rarity}
+              isWorldCup={pack.isWorldCup}
+              size="lg"
+              animated
+            />
+            {/* Outer glow */}
+            <div
+              className="absolute inset-0 rounded-3xl pointer-events-none"
+              style={{
+                boxShadow: pack.rarity === 'elite'
+                  ? '0 0 40px rgba(167,139,250,0.25), inset 0 0 0 1px rgba(167,139,250,0.2)'
+                  : pack.rarity === 'premium'
+                  ? '0 0 40px rgba(245,200,66,0.2), inset 0 0 0 1px rgba(245,200,66,0.15)'
+                  : '0 0 30px rgba(255,255,255,0.05), inset 0 0 0 1px rgba(255,255,255,0.08)',
+              }}
+            />
+          </motion.div>
 
-            {/* Shimmer */}
-            <div className="absolute inset-0 shimmer opacity-30 pointer-events-none" />
+          {/* Pack quick stats */}
+          <div className="flex gap-6 text-center text-sm">
+            <div>
+              <div className="font-black text-lg">5</div>
+              <div className="text-gray-500 text-xs">Cards</div>
+            </div>
+            <div>
+              <div className="font-black text-lg text-[#f5c842]">{pack.solPrice} SOL</div>
+              <div className="text-gray-500 text-xs">≈ £{pack.price.toFixed(2)}</div>
+            </div>
+            <div>
+              <div className="font-black text-lg text-purple-400">+{pack.xpReward}</div>
+              <div className="text-gray-500 text-xs">XP</div>
+            </div>
           </div>
         </motion.div>
 
@@ -147,7 +195,7 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
             <p className="text-gray-400 leading-relaxed">{pack.description}</p>
           </div>
 
-          {/* Price */}
+          {/* Price + buy box */}
           <div className="p-6 rounded-2xl bg-[#0f1117] border border-white/5">
             <div className="flex items-end justify-between mb-4">
               <div>
@@ -160,11 +208,11 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
               </div>
             </div>
 
-            {/* Stock */}
-            <div className="mb-4">
+            {/* Stock bar */}
+            <div className="mb-5">
               <div className="flex justify-between text-sm mb-1.5">
                 <span className="text-gray-500">{remaining} of {pack.stock} remaining</span>
-                <span className={stockPct < 20 ? 'text-red-400' : stockPct < 50 ? 'text-yellow-400' : 'text-green-400'}>
+                <span className={stockPct < 20 ? 'text-red-400 font-semibold' : stockPct < 50 ? 'text-yellow-400' : 'text-green-400'}>
                   {stockPct < 20 ? '🔥 Almost gone!' : stockPct < 50 ? 'Selling fast' : 'In stock'}
                 </span>
               </div>
@@ -180,38 +228,44 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
             </div>
 
             {error && (
-              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {error}
-              </div>
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{error}</div>
             )}
 
+            {/* Primary buy button */}
             <motion.button
               onClick={handleBuy}
               disabled={loading || remaining === 0}
               whileTap={{ scale: 0.97 }}
-              className="w-full py-4 bg-gradient-to-r from-[#f5c842] to-[#ff6b35] text-black font-bold rounded-xl text-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 bg-gradient-to-r from-[#f5c842] to-[#ff6b35] text-black font-bold rounded-xl text-lg transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed mb-3"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
                   Processing...
                 </span>
-              ) : remaining === 0 ? 'Sold Out' : (
-                `Open Pack — ${pack.solPrice} SOL`
-              )}
+              ) : remaining === 0 ? 'Sold Out' : `Open Pack — ${pack.solPrice} SOL`}
             </motion.button>
 
-            {!publicKey && (
-              <p className="text-center text-gray-600 text-xs mt-2">
-                Connect wallet to buy
-              </p>
-            )}
+            {/* Demo mode button */}
+            {demoMode && demoCredits > 0 ? (
+              <motion.button
+                onClick={handleDemoBuy}
+                disabled={loading}
+                whileTap={{ scale: 0.97 }}
+                className="w-full py-3 border border-green-500/30 bg-green-500/10 text-green-300 font-semibold rounded-xl text-sm transition-all hover:bg-green-500/15 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <FlaskConical size={15} />
+                Try Demo (free) · {demoCredits} credit{demoCredits !== 1 ? 's' : ''} left
+              </motion.button>
+            ) : !publicKey ? (
+              <p className="text-center text-gray-600 text-xs mt-1">Connect wallet to buy</p>
+            ) : null}
           </div>
 
-          {/* What you get */}
+          {/* What's inside */}
           <div className="p-5 rounded-2xl bg-[#0f1117] border border-white/5">
             <h3 className="font-bold text-sm uppercase tracking-wider text-gray-400 mb-4 flex items-center gap-2">
-              <Package size={14} /> What&apos;s Inside
+              <Package size={14} /> What&apos;s Inside (5 cards)
             </h3>
             <div className="space-y-2">
               {sortedCards.map(({ card, probability }) => {
@@ -219,11 +273,11 @@ export default function PackDetail({ pack }: { pack: PackWithCards }) {
                 return (
                   <div key={card.id} className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full" style={{ background: cfg.color }} />
-                      <span className="font-medium">{card.player}</span>
-                      <span className="text-gray-600">{card.team}</span>
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ background: cfg.color }} />
+                      <span className="font-medium truncate">{card.player}</span>
+                      <span className="text-gray-600 text-xs truncate">{card.team}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                       <span style={{ color: cfg.color }} className="text-xs font-semibold">{cfg.label}</span>
                       <span className="text-gray-600 text-xs">{(probability * 100).toFixed(1)}%</span>
                     </div>

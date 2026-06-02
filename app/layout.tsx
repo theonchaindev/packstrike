@@ -4,6 +4,7 @@ import { SolanaProvider } from '@/components/SolanaProvider'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import WalletSessionSync from '@/components/WalletSessionSync'
+import DemoModeBanner from '@/components/DemoModeBanner'
 
 export const metadata: Metadata = {
   title: 'PackStrike — Football Cards on Solana',
@@ -21,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full flex flex-col bg-[#07080c] text-[#f0f2f8]">
         <SolanaProvider>
           <WalletSessionSync />
+          <DemoModeBanner />
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
